@@ -1,0 +1,20 @@
+{
+  "name": "ebay-auction-timing-webapp",
+  "version": "1.0.0",
+  "description": "Offline single-file web app that tells you when to end eBay listings, plan relists, and print a weekly selling schedule. No dependencies, no network, no scraping.",
+  "main": "index.html",
+  "scripts": {
+    "test": "node --test tests/"
+  },
+  "keywords": [
+    "ebay",
+    "auction-timing",
+    "reselling",
+    "flipper",
+    "relist",
+    "offline-first",
+    "localfirst"
+  ],
+  "license": "MIT",
+  "private": true
+}

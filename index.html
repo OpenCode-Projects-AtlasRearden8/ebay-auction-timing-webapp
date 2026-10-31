@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eBay Auction Timing — like a friend would</title>
+<style>
+  :root {
+    --ink: #1f2933;
+    --paper: #f7f4ee;
+    --card: #ffffff;
+    --line: #e2d9c8;
+    --accent: #1f6f54;
+    --accent-soft: #dff0e7;
+    --gold: #b3701d;
+    --warn: #a33f2b;
+    --warn-soft: #f8e3dd;
+    --muted: #6b7280;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.55;
+  }
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 1.4rem 1rem 1.1rem;
+    text-align: center;
+  }
+  header h1 { margin: 0; font-size: 1.5rem; letter-spacing: 0.02em; }
+  header p { margin: 0.35rem 0 0; font-style: italic; opacity: 0.92; font-size: 0.95rem; }
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    justify-content: center;
+    background: var(--card);
+    border-bottom: 2px solid var(--line);
+    padding: 0.6rem 0.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  nav button {
+    font-family: inherit;
+    font-size: 0.9rem;
+    background: none;
+    border: 1.5px solid transparent;
+    border-radius: 999px;
+    padding: 0.35rem 0.9rem;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  nav button:hover { background: var(--accent-soft); }
+  nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  main { max-width: 900px; margin: 0 auto; padding: 1rem; }
+  section.panel { display: none; }
+  section.panel.active { display: block; }
+  h2 { font-size: 1.25rem; margin: 1.2rem 0 0.3rem; }
+  h2 + .lede { margin-top: 0; }
+  .lede { color: var(--muted); font-size: 0.95rem; margin-bottom: 1rem; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+    margin: 0.8rem 0;
+  }
+  label { display: block; font-size: 0.85rem; font-weight: bold; margin: 0.6rem 0 0.2rem; }
+  input, select, textarea {
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    width: 100%;
+    background: #fffdf8;
+    color: var(--ink);
+  }
+  textarea { resize: vertical; }
+  button.action {
+    font-family: inherit;
+    font-size: 0.92rem;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    margin-top: 0.6rem;
+  }
+  button.action.ghost {
+    background: none;
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+  }
+  button.action.small { padding: 0.25rem 0.6rem; font-size: 0.8rem; margin: 0 0.2rem; }
+  button.action:hover { filter: brightness(1.08); }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.4rem 0; }
+  .chip {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-family: "Courier New", monospace;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: #fffdf8;
+  }
+  .chip.good { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .chip.ok { background: #fdf3e0; border-color: var(--gold); color: var(--gold); }
+  .chip.risky { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+  .slot { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.2rem; border-bottom: 1px dashed var(--line); }
+  .slot:last-child { border-bottom: none; }
+  .slot .hour { min-width: 8.5rem; font-weight: bold; }
+  .slot .verdict { min-width: 5.5rem; font-size: 0.8rem; color: var(--muted); }
+  .bar { flex: 1; height: 10px; background: #efe9dc; border-radius: 999px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .bar i.mid { background: var(--gold); }
+  .bar i.low { background: var(--warn); }
+  .day-col { border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 0.6rem; min-height: 7rem; }
+  .day-col h3 { margin: 0 0 0.4rem; font-size: 0.95rem; border-bottom: 2px solid var(--accent-soft); padding-bottom: 0.25rem; }
+  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; }
+  .week-item {
+    font-size: 0.82rem;
+    background: var(--accent-soft);
+    border-radius: 6px;
+    padding: 0.25rem 0.45rem;
+    margin-bottom: 0.3rem;
+  }
+  .week-item.risky { background: var(--warn-soft); }
+  .week-item.oktone { background: #fdf3e0; }
+  .todaymark { background: #fff7d6; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th, td { text-align: left; padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .muted { color: var(--muted); font-size: 0.85rem; }
+  .nudge-overdue, .nudge-now { color: var(--warn); font-weight: bold; }
+  .nudge-soon { color: var(--gold); font-weight: bold; }
+  .bigstat { font-size: 1.5rem; font-weight: bold; color: var(--accent); }
+  ul.tips { padding-left: 1.2rem; }
+  ul.tips li { margin-bottom: 0.35rem; }
+  .print-only { display: none; }
+  #schedule-head { display: none; }
+  @media print {
+    body { background: #fff; }
+    header, nav, main > section:not(#panel-schedule) { display: none !important; }
+    #panel-schedule { display: block !important; }
+    #schedule-head { display: block; margin-bottom: 1rem; }
+    #schedule-tools { display: none !important; }
+    .day-col { break-inside: avoid; border: 1px solid #999; background: #fff; }
+    .week-item { background: #eee !important; }
+    .print-only { display: block; }
+    .screen-only { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>eBay Auction Timing</h1>
+  <p>Picking end times and relist days, explained like a friend would. Offline, private, no scraping — your notes live here in this browser.</p>
+</header>
+<nav id="tabs" aria-label="Sections">
+  <button data-tab="panel-hours" class="active">Best end times</button>
+  <button data-tab="panel-weekend">Weekend windows</button>
+  <button data-tab="panel-relist">Relist cadence</button>
+  <button data-tab="panel-notes">Category notes</button>
+  <button data-tab="panel-renew">Renewal nudges</button>
+  <button data-tab="panel-sunset">Sunset summary</button>
+  <button data-tab="panel-schedule">Weekly schedule</button>
+  <button data-tab="panel-about">Why it works</button>
+</nav>
+<main>
+  <section id="panel-hours" class="panel active">
+    <h2>Best end times</h2>
+    <p class="lede">Pick the day your auction will end. The app ranks ending hours for that day and explains each pick with reason chips. Nothing is scraped — this is the same advice a seasoned flipper would give you out loud.</p>
+    <div class="card">
+      <label for="end-day">Auction ends on</label>
+      <select id="end-day">
+        <option value="0">Sunday</option>
+        <option value="1">Monday</option>
+        <option value="2">Tuesday</option>
+        <option value="3">Wednesday</option>
+        <option value="4">Thursday</option>
+        <option value="5">Friday</option>
+        <option value="6">Saturday</option>
+      </select>
+      <label for="item-title">What are you listing? (optional, used when saving)</label>
+      <input id="item-title" type="text" placeholder="e.g. Vintage leather duffel" maxlength="80">
+      <button class="action" id="rank-btn">Rank the hours</button>
+      <div id="ranked-out"></div>
+    </div>
+    <div class="card">
+      <h2 style="margin-top:0">A quick cheat sheet</h2>
+      <div id="cheat-out"></div>
+      <p class="muted">Tip: start a 7-day auction the previous evening so it lands in the slot you want. Auctions are scheduled by their end time — bidders never see the start time.</p>
+    </div>
+  </section>
+
+  <section id="panel-weekend" class="panel">
+    <h2>Weekend windows</h2>
+    <p class="lede">For flea-market and garage-sale flippers: you source on the weekend and list while it's fresh. This is the rhythm that compounds — pick Saturday, list Sunday evening, repeat.</p>
+    <div class="card" id="weekend-out"></div>
+    <div class="card">
+      <h2 style="margin-top:0">The flipper rhythm</h2>
+      <ul class="tips">
+        <li><strong>Saturday morning:</strong> garage sales, estate sales, flea markets. Buy clean, complete, photographed-ready items.</li>
+        <li><strong>Saturday afternoon:</strong> photograph everything in one batch. Same background, natural light.</li>
+        <li><strong>Sunday:</strong> research comps, write listings, schedule them to end <em>next</em> Sunday evening at the highest-ranked hour.</li>
+        <li><strong>Sunday evening slot:</strong> by next Sunday your items end at the peak time, and the cycle repeats with money in your pocket.</li>
+      </ul>
+      <button class="action" id="weekend-sched-btn">Add this rhythm to the weekly schedule</button>
+    </div>
+  </section>
+
+  <section id="panel-relist" class="panel">
+    <h2>Relist cadence planner</h2>
+    <p class="lede">An item didn't sell — that's information, not failure. Enter when it was listed and how the category usually behaves, and you'll get a plain next step with a date.</p>
+    <div class="card">
+      <label for="rp-item">Item/category name</label>
+      <input id="rp-item" type="text" placeholder="e.g. Vintage camera" maxlength="80">
+      <label for="rp-listed">First listed on</label>
+      <input id="rp-listed" type="date">
+      <label for="rp-today">Today is</label>
+      <input id="rp-today" type="date">
+      <label for="rp-behavior">How does this category usually behave?</label>
+      <select id="rp-behavior">
+        <option value="unsure">Not sure (check my notes)</option>
+        <option value="fast">Sells fast — hot categories</option>
+        <option value="slow">Sits slow — niche or slow-burn</option>
+      </select>
+      <button class="action" id="rp-btn">Plan the relist</button>
+      <div id="rp-out"></div>
+    </div>
+  </section>
+
+  <section id="panel-notes" class="panel">
+    <h2>Category notes</h2>
+    <p class="lede">Your own seller's notebook. For each category, keep a one-line verdict: does it sell fast or sit slow? The relist planner reads these notes. It is all manual entry — you write it, it stays here.</p>
+    <div class="card">
+      <label for="note-cat">Category</label>
+      <input id="note-cat" type="text" placeholder="e.g. Video games" maxlength="60">
+      <label for="note-behavior">Verdict</label>
+      <select id="note-behavior">
+        <option value="fast">Sells fast</option>
+        <option value="slow">Sits slow</option>
+      </select>
+      <label for="note-text">Note to future-you</label>
+      <textarea id="note-text" rows="3" placeholder="e.g. Femur-level demand: end Sunday 8 PM, price at the high end, ships flat-rate." maxlength="400"></textarea>
+      <button class="action" id="note-save-btn">Save note</button>
+      <div id="notes-out"></div>
+    </div>
+  </section>
+
+  <section id="panel-renew" class="panel">
+    <h2>Renewal nudges</h2>
+    <p class="lede">Renewals sneak up on you: store subscriptions, Good-'Til-Cancelled listings, whatever you've promised future-you to revisit. Add target dates and this panel keeps score.</p>
+    <div class="card">
+      <label for="rn-name">What renews?</label>
+      <input id="rn-name" type="text" placeholder="e.g. eBay Basic Store" maxlength="60">
+      <label for="rn-date">Renewal date</label>
+      <input id="rn-date" type="date">
+      <label for="rn-note">Note (optional)</label>
+      <input id="rn-note" type="text" placeholder="e.g. $4.95/mo — decide by then" maxlength="120">
+      <div>
+        <button class="action" id="rn-add-btn">Add target</button>
+        <button class="action ghost small" id="rn-preset-store">Preset: store monthly</button>
+        <button class="action ghost small" id="rn-preset-gtc">Preset: GTC 30-day check</button>
+      </div>
+      <div id="rn-out"></div>
+    </div>
+  </section>
+
+  <section id="panel-sunset" class="panel">
+    <h2>Sunset summary</h2>
+    <p class="lede">End your selling day the way you'd close a ledger. Log what happened today and get a two-minute recap plus tomorrow's nudge. Breathe easy — the day is done.</p>
+    <div class="card">
+      <label for="ss-date">Day being logged</label>
+      <input id="ss-date" type="date">
+      <label for="ss-text">What happened?</label>
+      <input id="ss-text" type="text" placeholder="e.g. 3 listed, 1 sold, 2 to relist" maxlength="200">
+      <label for="ss-kind">Kind of entry</label>
+      <select id="ss-kind">
+        <option value="listed">Listed</option>
+        <option value="sold">Sold</option>
+        <option value="unsold">Didn't sell</option>
+        <option value="sourced">Sourced inventory</option>
+        <option value="note">Note</option>
+      </select>
+      <button class="action" id="ss-add-btn">Log it</button>
+      <div id="ss-out"></div>
+    </div>
+  </section>
+
+  <section id="panel-schedule" class="panel">
+    <div id="schedule-head">
+      <h1 style="font-size:1.4rem;margin:0 0 0.2rem">Weekly Selling Schedule</h1>
+      <p id="schedule-weeklabel" class="muted" style="margin:0"></p>
+      <p style="font-size:0.85rem;color:#555;margin:0.2rem 0 0">All times are evening local time. End-of-auction guidance, not financial advice.</p>
+    </div>
+    <h2 class="screen-only">Your weekly schedule</h2>
+    <p class="lede screen-only">Everything you saved lands here. Print it and pin it by your packing table.</p>
+    <div id="schedule-tools" class="screen-only">
+      <button class="action" id="print-btn">Print the schedule</button>
+      <button class="action ghost" id="sched-prev-btn">&larr; Earlier week</button>
+      <button class="action ghost" id="sched-next-btn">Later week &rarr;</button>
+      <button class="action ghost small" id="sched-clear-btn">Clear all saved items &amp; logs</button>
+    </div>
+    <div id="sched-grid" class="week-grid"></div>
+  </section>
+
+  <section id="panel-about" class="panel">
+    <h2>Why it works</h2>
+    <div class="card">
+      <ul class="tips">
+        <li><strong>Sunday evening rules the roost.</strong> Decades of seller habit put peak browsing from about 5&ndash;9 PM in the buyer's time zone. Aim near the top: 6, 7 or 8 PM.</li>
+        <li><strong>Avoid the dead zones.</strong> Overnight hours and Saturday daytime — buyers are asleep or at a garage sale. Ending Saturday at 1 PM means bidding against a flea market.</li>
+        <li><strong>Weekday evenings are a solid Plan B.</strong> Mon&ndash;Thu 6&ndash;9 PM works well for commodity items where buyers search, wait, and pounce.</li>
+        <li><strong>Relists are a rotation, not a repost.</strong> Change the ending evening when you relist. Same-slot relists inherit the same result.</li>
+        <li><strong>Money math lives in the sibling tool.</strong> Pair this with <em>ebay-profit-calculator-cli</em> for fees and margin; this app owns the <em>when</em>, that one owns the <em>how much</em>.</li>
+        <li><strong>Everything is local.</strong> No accounts, no scraping, no network calls. Your data sits in this browser's localStorage; clear it any time from the schedule page.</li>
+      </ul>
+      <p class="muted">Experience differs from market to market. The chips are starting points, not laws — keep your own category notes and let them override the defaults.</p>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+
+  var DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  function parseISO(iso) {
+    var p = iso.split('-');
+    return new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2])));
+  }
+  function toISO(dt) {
+    var y = dt.getUTCFullYear();
+    var m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    var d = String(dt.getUTCDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+  }
+  function addDaysISO(iso, n) {
+    var d = parseISO(iso);
+    d.setUTCDate(d.getUTCDate() + n);
+    return toISO(d);
+  }
+  function dayIndex(iso) {
+    return parseISO(iso).getUTCDay();
+  }
+  function daysBetween(fromISO, toISO2) {
+    return Math.round((parseISO(toISO2) - parseISO(fromISO)) / 86400000);
+  }
+  function nextDayISO(iso, targetDay) {
+    var d = parseISO(iso);
+    var delta = (targetDay - d.getUTCDay() + 7) % 7;
+    if (delta === 0) delta = 7;
+    return addDaysISO(iso, delta);
+  }
+  function nextWeekend(fromISO) {
+    var sat = nextDayISO(fromISO, 6);
+    return { friday: addDaysISO(sat, -1), saturday: sat, sunday: addDaysISO(sat, 1) };
+  }
+  function mondayOf(iso) {
+    var d = parseISO(iso);
+    var dow = d.getUTCDay();
+    var back = dow === 0 ? 6 : dow - 1;
+    return addDaysISO(iso, -back);
+  }
+
+  function scoreEndSlot(dayIdx, hour) {
+    dayIdx = ((dayIdx % 7) + 7) % 7;
+    hour = ((hour % 24) + 24) % 24;
+    var chips = [];
+    var score;
+    if (hour <= 5) {
+      score = 15;
+      chips.push({ label: 'Overnight: sleepy buyers', tone: 'risky' });
+    } else if (hour <= 10) {
+      score = 32;
+      chips.push({ label: 'Morning commute scroll', tone: 'risky' });
+      if (dayIdx === 6 && hour >= 8) {
+        score = 18;
+        chips.push({ label: 'Garage-sale hours: buyers are hunting, not bidding', tone: 'risky' });
+      }
+    } else if (hour <= 15) {
+      score = dayIdx === 6 ? 25 : 45;
+      if (dayIdx === 6) {
+        chips.push({ label: 'Saturday afternoon: lowest traffic of the week', tone: 'risky' });
+      } else {
+        chips.push({ label: 'Midday office snipers', tone: 'ok' });
+      }
+    } else if (hour <= 16) {
+      score = 58;
+      chips.push({ label: 'Approaching prime time', tone: 'ok' });
+    } else if (hour <= 21) {
+      if (dayIdx === 0) {
+        score = 96;
+        chips.push({ label: 'Sunday evening = the classic eBay sweet spot', tone: 'good' });
+        if (hour === 19 || hour === 20) {
+          chips.push({ label: 'Payday-weekend browsing, wallets out', tone: 'good' });
+        }
+      } else if (dayIdx >= 1 && dayIdx <= 4) {
+        score = 72;
+        chips.push({ label: 'Weeknight prime time', tone: 'good' });
+      } else if (dayIdx === 5) {
+        score = 48;
+        chips.push({ label: 'Friday night is family night', tone: 'risky' });
+      } else {
+        score = 52;
+        chips.push({ label: 'Saturday night works, but hold out for Sunday', tone: 'ok' });
+      }
+    } else if (hour === 22) {
+      score = dayIdx === 0 ? 78 : 60;
+      chips.push({ label: 'Late-evening stragglers: fewer bids but watchers close', tone: 'ok' });
+    } else {
+      score = 30;
+      chips.push({ label: 'Past-midnight gambler territory', tone: 'risky' });
+    }
+    if (dayIdx === 0 && hour >= 17 && hour <= 21) {
+      chips.push({ label: 'Tradition: Sunday close = most watchers online', tone: 'good' });
+    }
+    return { score: score, chips: chips };
+  }
+
+  function verdict(score) {
+    if (score >= 80) return 'Gold';
+    if (score >= 60) return 'Good';
+    if (score >= 40) return 'So-so';
+    return 'Risky';
+  }
+
+  function suggestEndSlots(dayIdx) {
+    var out = [];
+    for (var h = 0; h < 24; h++) {
+      var s = scoreEndSlot(dayIdx, h);
+      out.push({ hour: h, text: hourLabel(h), score: s.score, verdict: verdict(s.score), chips: s.chips });
+    }
+    out.sort(function (a, b) { return b.score - a.score || a.hour - b.hour; });
+    return out;
+  }
+
+  function hourLabel(h) {
+    var ampm = h < 12 ? 'AM' : 'PM';
+    var hh = h % 12;
+    if (hh === 0) hh = 12;
+    return hh + ':00 ' + ampm;
+  }
+
+  function bestSlotsAllDays() {
+    var out = [];
+    for (var d = 0; d < 7; d++) {
+      var best = null;
+      for (var h = 12; h <= 23; h++) {
+        var s = scoreEndSlot(d, h);
+        if (!best || s.score > best.score) {
+          best = { hour: h, score: s.score, chips: s.chips };
+        }
+      }
+      out.push({ day: d, name: DAY_NAMES[d], text: hourLabel(best.hour), score: best.score, verdict: verdict(best.score), chips: best.chips });
+    }
+    return out;
+  }
+
+  function weekendFlipperWindows(fromISO) {
+    var we = nextWeekend(fromISO);
+    return {
+      friday: { date: we.friday, label: DAY_SHORT[5], scope: 'Scout online listings (FB groups, estate-sale sites) for tomorrow' },
+      saturday: { date: we.saturday, label: DAY_SHORT[6], scope: 'Flea market & garage sales, then batch photography at home' },
+      sunday: { date: we.sunday, label: DAY_SHORT[0], scope: 'Research comps, write and schedule listings to end next Sunday 6-9 PM' }
+    };
+  }
+
+  function behaviorForCategory(name, notes) {
+    var n = String(name || '').trim().toLowerCase();
+    if (!n) return { behavior: 'unsure', note: '' };
+    for (var i = 0; i < notes.length; i++) {
+      if (String(notes[i].category || '').trim().toLowerCase() === n) {
+        return { behavior: notes[i].behavior, note: notes[i].text };
+      }
+    }
+    for (var j = 0; j < notes.length; j++) {
+      var c = String(notes[j].category || '').trim().toLowerCase();
+      if (c && (n.indexOf(c) !== -1 || c.indexOf(n) !== -1)) {
+        return { behavior: notes[j].behavior, note: notes[j].text };
+      }
+    }
+    return { behavior: 'unsure', note: '' };
+  }
+
+  function nextRelistDate(todayISO, mode) {
+    if (mode === 'rotate-midweek') return nextDayISO(todayISO, 3);
+    return nextDayISO(todayISO, 0);
+  }
+
+  function cadencePlan(listedISO, todayISO, behavior) {
+    var age = daysBetween(listedISO, todayISO);
+    var plan = { listed: listedISO, today: todayISO, behavior: behavior, age: age, chips: [] };
+    if (age < 0) {
+      plan.headline = 'That listing is in the future — check the dates.';
+      plan.action = 'fix-dates';
+      plan.chips.push({ label: 'Listed date is after today', tone: 'risky' });
+      return plan;
+    }
+    if (behavior === 'unsure') {
+      if (age < 7) {
+        plan.headline = 'Too early to call. Let it ride and watch who watches it.';
+        plan.action = 'wait';
+        plan.targetDate = addDaysISO(listedISO, 7);
+        plan.chips.push({ label: 'Watchers in the first week tell you fast vs slow', tone: 'ok' });
+      } else if (age < 30) {
+        plan.headline = 'One more rotation, then decide with data.';
+        plan.action = 'relist';
+        plan.targetDate = nextRelistDate(todayISO, 'sunday-evening');
+        plan.chips.push({ label: 'Sell Similar to carry reviews & watchers over', tone: 'good' });
+        plan.chips.push({ label: 'Trim the price a notch before relisting', tone: 'ok' });
+      } else {
+        plan.headline = 'Thirty days is the verdict point. Renew if it earned watchers, retire it if it sat cold.';
+        plan.action = 'renew-or-retire';
+        plan.targetDate = todayISO;
+        plan.chips.push({ label: 'GTC renewal keeps your Best Match history', tone: 'good' });
+        plan.chips.push({ label: 'No watchers in 30 days = change the frame, not the price', tone: 'risky' });
+      }
+      return plan;
+    }
+    if (behavior === 'fast') {
+      if (age < 3) {
+        plan.headline = 'Hot category: expect action in the final 24 hours. Do nothing yet.';
+        plan.action = 'wait';
+        plan.targetDate = addDaysISO(listedISO, 3);
+        plan.chips.push({ label: 'Fast categories live and die in the last day', tone: 'good' });
+      } else if (age < 7) {
+        plan.headline = 'The last stretch. Answer questions fast and price-check the top listing tonight.';
+        plan.action = 'watch';
+        plan.targetDate = addDaysISO(listedISO, 7);
+        plan.chips.push({ label: 'Fast category: final-week surge', tone: 'ok' });
+      } else if (age < 14) {
+        plan.headline = 'Round two for a fast category: end it Sunday evening, price a hair lower.';
+        plan.action = 'relist';
+        plan.targetDate = nextRelistDate(todayISO, 'sunday-evening');
+        plan.chips.push({ label: 'Sunday 6-9 PM slot for a hot item', tone: 'good' });
+        plan.chips.push({ label: 'Beat the cheapest active comp by ~5%', tone: 'ok' });
+      } else if (age < 30) {
+        plan.headline = 'Two passes without a sale means the frame is off, not the timer.';
+        plan.action = 'reframe';
+        plan.targetDate = nextRelistDate(todayISO, 'rotate-midweek');
+        plan.chips.push({ label: 'Better photos + keyword title before round three', tone: 'ok' });
+        plan.chips.push({ label: 'Even a fast category needs the right ending hour', tone: 'good' });
+      } else {
+        plan.headline = 'Thirty days is the verdict point, even for fast categories.';
+        plan.action = 'renew-or-retire';
+        plan.targetDate = todayISO;
+        plan.chips.push({ label: 'Renew if watchers exist, retire if it sat cold', tone: 'good' });
+        plan.chips.push({ label: 'Spin-off idea: bundle it with a faster seller', tone: 'ok' });
+      }
+      return plan;
+    }
+    if (age < 7) {
+      plan.headline = 'Slow-burn categories reward patience. Let the full run finish.';
+      plan.action = 'wait';
+      plan.targetDate = addDaysISO(listedISO, 7);
+      plan.chips.push({ label: 'Slow category: expect cruising speed, not a sprint', tone: 'ok' });
+    } else if (age < 30) {
+      plan.headline = 'Rotate the ending evening. Repetition repeats results; rotation finds new eyes.';
+      plan.action = 'relist';
+      plan.targetDate = nextRelistDate(todayISO, 'rotate-midweek');
+      plan.chips.push({ label: 'Rotate to a midweek evening (Wed 8 PM is good)', tone: 'good' });
+      plan.chips.push({ label: 'Slow categories peak with patient collector buyers', tone: 'ok' });
+    } else {
+      plan.headline = 'Time for the 30-day renewal checkpoint.';
+      plan.action = 'renew-or-retire';
+      plan.targetDate = todayISO;
+      plan.chips.push({ label: 'Renew GTC listings around day 30', tone: 'good' });
+      plan.chips.push({ label: 'Slow sellers still bank money — check your comp math first', tone: 'ok' });
+    }
+    return plan;
+  }
+
+  function renewalNudges(targets, todayISO) {
+    return targets.map(function (t) {
+      var days = daysBetween(todayISO, t.date);
+      var tone;
+      if (days < 0) tone = 'overdue';
+      else if (days <= 1) tone = 'now';
+      else if (days <= 7) tone = 'soon';
+      else tone = 'ok';
+      return {
+        name: t.name, date: t.date, note: t.note || '', days: days, tone: tone
+      };
+    }).sort(function (a, b) { return a.days - b.days; });
+  }
+
+  function summarizeDay(entries, dateISO) {
+    var counts = { listed: 0, sold: 0, unsold: 0, sourced: 0, note: 0 };
+    var unsoldTexts = [];
+    for (var i = 0; i < entries.length; i++) {
+      if (entries[i].date !== dateISO) continue;
+      var k = entries[i].kind;
+      if (counts[k] !== undefined) counts[k]++;
+      if (k === 'unsold') unsoldTexts.push(entries[i].text);
+    }
+    var tomorrow = null;
+    if (unsoldTexts.length > 0) {
+      tomorrow = {
+        kind: 'relist',
+        text: 'Relist tomorrow: ' + unsoldTexts.join(' | '),
+        targetDate: nextRelistDate(addDaysISO(dateISO, 1), 'sunday-evening')
+      };
+    }
+    return { date: dateISO, counts: counts, tomorrow: tomorrow };
+  }
+
+  function timeKey(label) {
+    var m = /^(\d{1,2}):(\d{2})\s?(AM|PM)$/i.exec(String(label || '').trim());
+    if (!m) return 9999;
+    var hh = Number(m[1]) % 12 + (m[3].toUpperCase() === 'PM' ? 12 : 0);
+    return hh * 60 + Number(m[2]);
+  }
+
+  function buildWeekSchedule(mondayISO, items, label) {
+    var days = [];
+    for (var d = 0; d < 7; d++) {
+      var date = addDaysISO(mondayISO, d);
+      var di = dayIndex(date);
+      days.push({ date: date, name: DAY_SHORT[di], full: DAY_NAMES[di], items: [] });
+    }
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      var pos = (dayIndex(it.date) + 6) % 7;
+      days[pos].items.push(it);
+    }
+    for (var j = 0; j < days.length; j++) {
+      days[j].items.sort(function (a, b) { return timeKey(a.time) - timeKey(b.time); });
+    }
+    return { monday: mondayISO, label: label, days: days };
+  }
+
+  var api = {
+    DAY_NAMES: DAY_NAMES,
+    DAY_SHORT: DAY_SHORT,
+    parseISO: parseISO,
+    toISO: toISO,
+    addDaysISO: addDaysISO,
+    dayIndex: dayIndex,
+    daysBetween: daysBetween,
+    nextDayISO: nextDayISO,
+    nextWeekend: nextWeekend,
+    mondayOf: mondayOf,
+    scoreEndSlot: scoreEndSlot,
+    verdict: verdict,
+    suggestEndSlots: suggestEndSlots,
+    hourLabel: hourLabel,
+    timeKey: timeKey,
+    bestSlotsAllDays: bestSlotsAllDays,
+    weekendFlipperWindows: weekendFlipperWindows,
+    behaviorForCategory: behaviorForCategory,
+    nextRelistDate: nextRelistDate,
+    cadencePlan: cadencePlan,
+    renewalNudges: renewalNudges,
+    summarizeDay: summarizeDay,
+    buildWeekSchedule: buildWeekSchedule
+  };
+  globalThis.EBT = api;
+
+  if (typeof document === 'undefined') return;
+
+  var LS = {
+    schedule: 'ebt.schedule.v1',
+    notes: 'ebt.notes.v1',
+    renewals: 'ebt.renewals.v1',
+    log: 'ebt.log.v1',
+    weekOffset: 'ebt.week.offset.v1'
+  };
+
+  function load(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      if (raw === null) return fallback;
+      var val = JSON.parse(raw);
+      return Array.isArray(fallback) ? (Array.isArray(val) ? val : fallback) : val;
+    } catch (e) {
+      return fallback;
+    }
+  }
+  function save(key, val) {
+    try {
+      localStorage.setItem(key, JSON.stringify(val));
+    } catch (e) { }
+  }
+
+  var scheduleItems = load(LS.schedule, []);
+  var notes = load(LS.notes, []);
+  var renewals = load(LS.renewals, []);
+  var logEntries = load(LS.log, []);
+  var weekOffset = load(LS.weekOffset, 0);
+
+  function isoToday() {
+    var d = new Date();
+    return EBT.toISO(new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())));
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function chipHTML(c) {
+    return '<span class="chip ' + esc(c.tone) + '">' + esc(c.label) + '</span>';
+  }
+  function chipsHTML(chips) {
+    var h = '<div class="chips">';
+    for (var i = 0; i < chips.length; i++) h += chipHTML(chips[i]);
+    return h + '</div>';
+  }
+  function addScheduleItem(date, time, text) {
+    scheduleItems.push({ date: date, time: time, text: text });
+    save(LS.schedule, scheduleItems);
+    renderSchedule();
+  }
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'toast';
+      t.style.cssText = 'position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:#1f6f54;color:#fff;padding:0.5rem 1rem;border-radius:8px;font-size:0.9rem;opacity:0;transition:opacity 0.3s;z-index:99;font-family:Georgia,serif';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._h);
+    t._h = setTimeout(function () { t.style.opacity = '0'; }, 2200);
+  }
+
+  var tabs = document.querySelectorAll('#tabs button');
+  for (var ti = 0; ti < tabs.length; ti++) {
+    tabs[ti].addEventListener('click', function () {
+      var all = document.querySelectorAll('#tabs button');
+      for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
+      this.classList.add('active');
+      var panels = document.querySelectorAll('section.panel');
+      for (var p = 0; p < panels.length; p++) panels[p].classList.remove('active');
+      document.getElementById(this.dataset.tab).classList.add('active');
+    });
+  }
+
+  document.getElementById('rank-btn').addEventListener('click', function () {
+    var dayIdx = Number(document.getElementById('end-day').value);
+    var slots = EBT.suggestEndSlots(dayIdx).slice(0, 10);
+    var title = document.getElementById('item-title').value.trim();
+    var out = '<h2 style="margin-top:0.8rem">Ending ' + EBT.DAY_NAMES[dayIdx] + ': ranked</h2>';
+    for (var i = 0; i < slots.length; i++) {
+      var s = slots[i];
+      var cls = s.score >= 80 ? '' : (s.score >= 40 ? 'mid' : 'low');
+      out += '<div class="slot"><span class="hour">' + esc(s.text) + '</span>' +
+        '<span class="bar"><i class="' + cls + '" style="width:' + s.score + '%"></i></span>' +
+        '<span class="verdict">' + esc(s.verdict) + ' (' + s.score + ')</span></div>' + chipsHTML(s.chips);
+      if (s.score >= 60) {
+        out += '<button class="action small" data-hour="' + s.hour + '" data-day="' + dayIdx + '">Schedule this</button>';
+      }
+    }
+    document.getElementById('ranked-out').innerHTML = out;
+    var btns = document.querySelectorAll('#ranked-out button[data-hour]');
+    for (var b = 0; b < btns.length; b++) {
+      btns[b].addEventListener('click', function () {
+        var h = Number(this.dataset.hour), d = Number(this.dataset.day);
+        var we = EBT.nextWeekend(isoToday());
+        var endDate = (d === 0) ? we.sunday : EBT.addDaysISO(isoToday(), ((d - EBT.dayIndex(isoToday()) + 7) % 7 || 7));
+        var label = EBT.hourLabel(h);
+        var text = title || 'Item ending ' + EBT.DAY_NAMES[d];
+        addScheduleItem(endDate, label, text + ' ends ' + label);
+        toast('Added to ' + endDate + ' at ' + label);
+      });
+    }
+  });
+
+  function renderCheat() {
+    var best = EBT.bestSlotsAllDays();
+    var out = '<table><tr><th>Day</th><th>Best end hour</th><th>Verdict</th></tr>';
+    for (var i = 0; i < best.length; i++) {
+      var b = best[i];
+      out += '<tr><td>' + esc(b.name) + '</td><td>' + esc(b.text) + '</td><td><span class="chip ' + (b.score >= 80 ? 'good' : (b.score >= 40 ? 'ok' : 'risky')) + '">' + esc(b.verdict) + '</span></td></tr>';
+    }
+    out += '</table>';
+    document.getElementById('cheat-out').innerHTML = out;
+  }
+
+  document.getElementById('weekend-sched-btn').addEventListener('click', function () {
+    var we = EBT.nextWeekend(isoToday());
+    addScheduleItem(we.saturday, '8:00 AM', 'Sourcing run: flea market & garage sales');
+    addScheduleItem(we.saturday, '2:00 PM', 'Batch photography session');
+    addScheduleItem(we.sunday, '11:00 AM', 'Comps, write listings, schedule auctions');
+    toast('Weekend rhythm added — listings will end next Sunday evening');
+  });
+
+  function renderWeekend() {
+    var w = EBT.weekendFlipperWindows(isoToday());
+    var out = '<h2 style="margin-top:0">This coming weekend</h2>';
+    out += '<table><tr><th>Day</th><th>Date</th><th>The move</th></tr>';
+    [w.friday, w.saturday, w.sunday].forEach(function (d) {
+      out += '<tr><td><strong>' + esc(d.label) + '</strong></td><td>' + esc(d.date) + '</td><td>' + esc(d.scope) + '</td></tr>';
+    });
+    out += '</table>';
+    document.getElementById('weekend-out').innerHTML = out;
+  }
+
+  document.getElementById('rp-btn').addEventListener('click', function () {
+    var item = document.getElementById('rp-item').value.trim() || 'This item';
+    var listed = document.getElementById('rp-listed').value;
+    var todayInput = document.getElementById('rp-today').value || isoToday();
+    var behavior = document.getElementById('rp-behavior').value;
+    if (!listed) {
+      document.getElementById('rp-out').innerHTML = '<div class="chip risky">Add the date it was first listed.</div>';
+      return;
+    }
+    var looked = EBT.behaviorForCategory(item, notes);
+    if (behavior === 'unsure' && looked.behavior !== 'unsure') behavior = looked.behavior;
+    var plan = EBT.cadencePlan(listed, todayInput, behavior);
+    var actionLine = {
+      'wait': 'Action: wait until ' + plan.targetDate + '.',
+      'watch': 'Action: watch closely; decision lands ' + plan.targetDate + '.',
+      'relist': 'Action: relist on ' + plan.targetDate + ' (' + EBT.DAY_NAMES[EBT.dayIndex(plan.targetDate)] + ') and set the ending hour from the Best end times tab.',
+      'reframe': 'Action: re-shoot photos and rewrite the title, then relist ' + plan.targetDate + '.',
+      'renew-or-retire': 'Action: on ' + plan.targetDate + ', renew or formally retire the listing.',
+      'fix-dates': 'Action: fix the listed date.'
+    }[plan.action] || 'Action: review the plan.';
+    var out = '<h2 style="margin-top:0.8rem">' + esc(item) + ' — ' + esc(plan.headline) + '</h2>';
+    out += '<p class="muted">Day ' + plan.age + ' of its run &middot; mode: ' + esc(behavior) +
+      (looked.note ? ' (from your note: &ldquo;' + esc(looked.note) + '&rdquo;)' : '') + '</p>';
+    out += '<p>' + esc(actionLine) + '</p>' + chipsHTML(plan.chips);
+    if (plan.action === 'relist' || plan.action === 'reframe') {
+      out += '<button class="action small" id="rp-schedule-btn">Add to schedule</button>';
+    }
+    document.getElementById('rp-out').innerHTML = out;
+    var btn = document.getElementById('rp-schedule-btn');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        addScheduleItem(plan.targetDate, EBT.hourLabel(plan.action === 'reframe' ? 20 : 19), item + ' — relist (rotate ending hour)');
+        toast('Relist task added to ' + plan.targetDate);
+      });
+    }
+  });
+
+  function renderNotes() {
+    if (notes.length === 0) {
+      document.getElementById('notes-out').innerHTML = '<p class="muted">No notes yet. Your first one might be &ldquo;Video games — sells fast&rdquo;.</p>';
+      return;
+    }
+    var out = '<table><tr><th>Category</th><th>Verdict</th><th>Note</th><th></th></tr>';
+    for (var i = 0; i < notes.length; i++) {
+      out += '<tr><td><strong>' + esc(notes[i].category) + '</strong></td><td><span class="chip ' + (notes[i].behavior === 'fast' ? 'good' : 'ok') + '">' + (notes[i].behavior === 'fast' ? 'fast' : 'slow') + '</span></td><td>' + esc(notes[i].text) + '</td><td><button class="action ghost small" data-del="' + i + '">del</button></td></tr>';
+    }
+    out += '</table>';
+    document.getElementById('notes-out').innerHTML = out;
+    var dels = document.querySelectorAll('#notes-out button[data-del]');
+    for (var d = 0; d < dels.length; d++) {
+      dels[d].addEventListener('click', function () {
+        notes.splice(Number(this.dataset.del), 1);
+        save(LS.notes, notes);
+        renderNotes();
+        toast('Note removed');
+      });
+    }
+  }
+
+  document.getElementById('note-save-btn').addEventListener('click', function () {
+    var cat = document.getElementById('note-cat').value.trim();
+    if (!cat) { toast('Give the category a name first'); return; }
+    var entry = {
+      category: cat,
+      behavior: document.getElementById('note-behavior').value,
+      text: document.getElementById('note-text').value.trim()
+    };
+    var found = false;
+    for (var i = 0; i < notes.length; i++) {
+      if (notes[i].category.toLowerCase() === cat.toLowerCase()) { notes[i] = entry; found = true; break; }
+    }
+    if (!found) notes.push(entry);
+    save(LS.notes, notes);
+    document.getElementById('note-cat').value = '';
+    document.getElementById('note-text').value = '';
+    renderNotes();
+    toast(found ? 'Note updated' : 'Note saved');
+  });
+
+  function renderRenew() {
+    var nudges = EBT.renewalNudges(renewals, isoToday());
+    if (nudges.length === 0) {
+      document.getElementById('rn-out').innerHTML = '<p class="muted">No targets yet. Try the preset buttons — most sellers only ever need the store renewal and a monthly GTC check.</p>';
+      return;
+    }
+    var toneWord = { overdue: 'OVERDUE', now: 'RENEWS TODAY', soon: 'this week', ok: 'on the horizon' };
+    var out = '<table><tr><th>Target</th><th>Date</th><th>Countdown</th><th></th></tr>';
+    for (var i = 0; i < nudges.length; i++) {
+      var n = nudges[i];
+      var cd = n.days < 0 ? (Math.abs(n.days) + ' days past') : (n.days === 0 ? 'today' : n.days + ' days out');
+      out += '<tr><td><strong>' + esc(n.name) + '</strong>' + (n.note ? '<br><span class="muted">' + esc(n.note) + '</span>' : '') + '</td><td>' + esc(n.date) + '</td><td class="nudge-' + n.tone + '">' + esc(toneWord[n.tone]) + (n.days !== 0 ? ' &middot; ' + esc(cd) : '') + '</td><td><button class="action ghost small" data-del="' + i + '">del</button></td></tr>';
+    }
+    out += '</table>';
+    document.getElementById('rn-out').innerHTML = out;
+    var dels = document.querySelectorAll('#rn-out button[data-del]');
+    for (var d = 0; d < dels.length; d++) {
+      dels[d].addEventListener('click', function () {
+        renewals.splice(Number(this.dataset.del), 1);
+        save(LS.renewals, renewals);
+        renderRenew();
+        toast('Target removed');
+      });
+    }
+  }
+
+  document.getElementById('rn-add-btn').addEventListener('click', function () {
+    var name = document.getElementById('rn-name').value.trim();
+    var date = document.getElementById('rn-date').value;
+    if (!name || !date) { toast('A target needs a name and a date'); return; }
+    renewals.push({ name: name, date: date, note: document.getElementById('rn-note').value.trim() });
+    renewals.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    save(LS.renewals, renewals);
+    document.getElementById('rn-name').value = '';
+    document.getElementById('rn-date').value = '';
+    document.getElementById('rn-note').value = '';
+    renderRenew();
+    toast('Renewal target saved');
+  });
+  document.getElementById('rn-preset-store').addEventListener('click', function () {
+    var d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    var next = EBT.toISO(new Date(Date.UTC(d.getFullYear(), d.getMonth(), 1)));
+    renewals.push({ name: 'eBay store subscription renews', date: next, note: 'Re-evaluate: still earning its fee?' });
+    renewals.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    save(LS.renewals, renewals);
+    renderRenew();
+    toast('Store renewal preset added for ' + next);
+  });
+  document.getElementById('rn-preset-gtc').addEventListener('click', function () {
+    var next = EBT.addDaysISO(isoToday(), 30);
+    renewals.push({ name: 'Good-\'Til-Cancelled 30-day check', date: next, note: 'Renew slow-movers; retire 30-day no-watchers' });
+    renewals.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    save(LS.renewals, renewals);
+    renderRenew();
+    toast('GTC check added for ' + next);
+  });
+
+  function renderSunset() {
+    var date = document.getElementById('ss-date').value || isoToday();
+    var sum = EBT.summarizeDay(logEntries, date);
+    var out = '<h2 style="margin-top:0.8rem">' + esc(sum.date) + ': today in numbers</h2>';
+    out += '<p><span class="bigstat">' + (sum.counts.listed + sum.counts.sold) + '</span> <span class="muted">listings &amp; sales touched today</span></p>';
+    out += '<table><tr><td>Listed</td><td>' + sum.counts.listed + '</td></tr><tr><td>Sold</td><td>' + sum.counts.sold + '</td></tr><tr><td>Didn&#39;t sell</td><td>' + sum.counts.unsold + '</td></tr><tr><td>Sourced inventory</td><td>' + sum.counts.sourced + '</td></tr><tr><td>Notes</td><td>' + sum.counts.note + '</td></tr></table>';
+    if (sum.tomorrow) {
+      out += '<h2 style="margin-top:1rem">Tomorrow&#39;s nudge</h2><p>' + esc(sum.tomorrow.text) + '</p>';
+      out += '<p class="muted">Best slot for the relist: ' + esc(sum.tomorrow.targetDate) + ' (' + EBT.DAY_NAMES[EBT.dayIndex(sum.tomorrow.targetDate)] + '), ending 7&ndash;8 PM.</p>';
+      out += '<button class="action small" id="ss-tomorrow-btn">Put the relists on the schedule</button>';
+    } else {
+      out += '<p class="muted">Nothing unsold today — the sunset is clean. Rest well.</p>';
+    }
+    var todaysEntries = logEntries.filter(function (e) { return e.date === date; });
+    if (todaysEntries.length > 0) {
+      out += '<table style="margin-top:0.8rem"><tr><th>Log</th><th></th></tr>';
+      for (var i = todaysEntries.length - 1; i >= 0; i--) {
+        var e = todaysEntries[i];
+        out += '<tr><td><span class="chip ok">' + esc(e.kind) + '</span> ' + esc(e.text) + '</td><td><button class="action ghost small" data-idx="' + logEntries.indexOf(e) + '">del</button></td></tr>';
+      }
+      out += '</table>';
+    }
+    document.getElementById('ss-out').innerHTML = out;
+    var tBtn = document.getElementById('ss-tomorrow-btn');
+    if (tBtn) {
+      tBtn.addEventListener('click', function () {
+        for (var i = 0; i < logEntries.length; i++) {
+          if (logEntries[i].date === date && logEntries[i].kind === 'unsold') {
+            addScheduleItem(sum.tomorrow.targetDate, '7:00 PM', 'Relist: ' + logEntries[i].text);
+          }
+        }
+        toast('Relist tasks scheduled for ' + sum.tomorrow.targetDate);
+      });
+    }
+    var dels = document.querySelectorAll('#ss-out button[data-idx]');
+    for (var d = 0; d < dels.length; d++) {
+      dels[d].addEventListener('click', function () {
+        logEntries.splice(Number(this.dataset.idx), 1);
+        save(LS.log, logEntries);
+        renderSunset();
+      });
+    }
+  }
+
+  document.getElementById('ss-add-btn').addEventListener('click', function () {
+    var text = document.getElementById('ss-text').value.trim();
+    if (!text) { toast('Log nothing? Log how the day felt.'); return; }
+    logEntries.push({
+      date: document.getElementById('ss-date').value || isoToday(),
+      kind: document.getElementById('ss-kind').value,
+      text: text
+    });
+    save(LS.log, logEntries);
+    document.getElementById('ss-text').value = '';
+    renderSunset();
+    toast('Logged');
+  });
+
+  function renderSchedule() {
+    var today = isoToday();
+    var monday = EBT.addDaysISO(EBT.mondayOf(today), weekOffset * 7);
+    var week = EBT.buildWeekSchedule(monday, scheduleItems.concat(
+      renewals.map(function (r) {
+        return { date: r.date, time: '', text: '[Renewal] ' + r.name, tone: 'oktone' };
+      })
+    ), null);
+    var labelStart = week.days[0].date;
+    var labelEnd = week.days[6].date;
+    document.getElementById('schedule-weeklabel').textContent =
+      (weekOffset === 0 ? 'This week: ' : (weekOffset > 0 ? 'Coming up: ' : 'Back when: ')) + labelStart + ' to ' + labelEnd;
+    var grid = document.getElementById('sched-grid');
+    var html = '';
+    for (var d = 0; d < 7; d++) {
+      var day = week.days[d];
+      var cls = day.date === today ? ' todaymark' : '';
+      html += '<div class="day-col' + cls + '"><h3>' + esc(day.name) + ' <span class="muted" style="font-weight:normal">' + esc(day.date) + '</span></h3>';
+      for (var i = 0; i < day.items.length; i++) {
+        var it = day.items[i];
+        var tone = it.tone || (EBT.dayIndex(it.date) === 0 && /end/.test(it.text) ? '' : 'oktone');
+        html += '<div class="week-item ' + tone + '">' + (it.time ? '<strong>' + esc(it.time) + '</strong> — ' : '') + esc(it.text) + '</div>';
+      }
+      if (day.items.length === 0) html += '<span class="muted">—</span>';
+      html += '</div>';
+    }
+    grid.innerHTML = html;
+  }
+
+  document.getElementById('print-btn').addEventListener('click', function () { window.print(); });
+  document.getElementById('sched-prev-btn').addEventListener('click', function () {
+    weekOffset--; save(LS.weekOffset, weekOffset); renderSchedule();
+  });
+  document.getElementById('sched-next-btn').addEventListener('click', function () {
+    weekOffset++; save(LS.weekOffset, weekOffset); renderSchedule();
+  });
+  document.getElementById('sched-clear-btn').addEventListener('click', function () {
+    if (!confirm('Clear all saved schedule items and log entries? Category notes and renewal targets stay.')) return;
+    scheduleItems = [];
+    logEntries = [];
+    save(LS.schedule, scheduleItems);
+    save(LS.log, logEntries);
+    renderSchedule();
+    renderSunset();
+    toast('Cleared');
+  });
+
+  document.getElementById('end-day').value = String(0);
+  document.getElementById('rp-today').value = isoToday();
+  document.getElementById('ss-date').value = isoToday();
+
+  renderCheat();
+  renderWeekend();
+  renderNotes();
+  renderRenew();
+  renderSunset();
+  renderSchedule();
+})();
+</script>
+</body>
+</html>
